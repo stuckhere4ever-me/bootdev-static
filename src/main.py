@@ -1,10 +1,11 @@
 from .markdown_converter import markdown_to_html_node, extract_title
 
 import os
+import sys
 import shutil
 
 STATIC_ROOT = './static'
-HTML_ROOT = './public'
+HTML_ROOT = './docs'
 TEMPLATE_ROOT = './template'
 CONTENT_ROOT = './content'
 
@@ -34,7 +35,7 @@ def copy_tree(src, dest):
             copy_tree(src_filename, dst_filename)
 
 
-def generate_page(from_path, template_path, dest_path):
+def generate_page(from_path, template_path, dest_path, base_path):
     print(f"Generating page from {from_path} to {dest_path} using {template_path}")
     with open (from_path, 'r') as src:
         src_markdown = src.read()
@@ -48,6 +49,8 @@ def generate_page(from_path, template_path, dest_path):
 
     final_html = template_html.replace('{{ Title }}', page_title)
     final_html = final_html.replace('{{ Content }}', converted_html)
+    final_html = final_html.replace('href="/', f'href="{base_path}')
+    final_html = final_html.replace('src="/', f'src="{base_path}')
 
     if not os.path.exists(dest_path):
         os.makedirs(dest_path)
@@ -56,24 +59,25 @@ def generate_page(from_path, template_path, dest_path):
     with open (dest_file, 'w', encoding='utf-8') as dest:
         dest.write(final_html)
 
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
-    
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path, base_path): 
     list_of_items = os.listdir(dir_path_content)
-    # print (list_of_items)
 
     for content in list_of_items:
         updated_src_path = os.path.join(dir_path_content, content)
         if os.path.isfile(updated_src_path):
-            #print (updated_src_path)
-            generate_page(updated_src_path, template_path, dest_dir_path)
+            generate_page(updated_src_path, template_path, dest_dir_path, base_path)
         else:
             updated_dst_path = os.path.join(dest_dir_path, content)
-            generate_pages_recursive(updated_src_path, template_path, updated_dst_path)
+            generate_pages_recursive(updated_src_path, template_path, updated_dst_path, base_path)
 
 
 def main():
 
-    clean_public()
+    base_path = '/'
+
+    if len(sys.argv) > 1:
+        base_path = f'{sys.argv[1]}/'
+    print (base_path)
 
     if not os.path.exists((content_path := os.path.join(CONTENT_ROOT, 'index.md'))):
         raise FileNotFoundError(f"Missing File {content_path}")
@@ -81,8 +85,8 @@ def main():
     if not os.path.exists((template_path := os.path.join(TEMPLATE_ROOT, 'template.html'))):
         raise FileNotFoundError(f"Missing File {template_path}")
 
-
-    generate_pages_recursive(CONTENT_ROOT, template_path, HTML_ROOT)
+    clean_public()
+    generate_pages_recursive(CONTENT_ROOT, template_path, HTML_ROOT, base_path)
 
 
 
